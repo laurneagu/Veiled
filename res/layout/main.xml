@@ -1,0 +1,33 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+              android:orientation="vertical"
+              android:layout_width="fill_parent"
+              android:layout_height="fill_parent"
+              android:weightSum="1">
+    <FrameLayout
+            android:layout_width="match_parent"
+            android:layout_height="match_parent" android:id="@+id/frameL">
+        <Button
+                android:layout_width="140dp"
+                android:layout_height="163dp"
+                android:text="View messages"
+                android:id="@+id/button2" android:layout_gravity="right|center_vertical" android:layout_weight="0.36"/>
+        <Button
+                android:layout_width="140dp"
+                android:layout_height="163dp"
+                android:text="Add new message"
+                android:id="@+id/button1" android:layout_weight="0.34" android:layout_gravity="left|center_vertical"/>
+        <TextView
+                android:layout_width="198dp"
+                android:layout_height="83dp"
+                android:text="Veiled"
+                android:id="@+id/veiled" android:layout_gravity="center_horizontal|top" android:textStyle="bold"
+                android:textIsSelectable="false" android:width="30dp" android:height="50dp" android:textSize="40dp"/>
+        <Button
+                android:layout_width="wrap_content"
+                android:layout_height="66dp"
+                android:text="Test Sensors"
+                android:id="@+id/testSensors" android:layout_gravity="center_horizontal|bottom"/>
+    </FrameLayout>
+</LinearLayout>
+
