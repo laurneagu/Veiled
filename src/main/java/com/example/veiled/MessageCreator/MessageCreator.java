@@ -8,10 +8,8 @@ import android.content.Context;
 import android.content.pm.ActivityInfo;
 import android.graphics.PixelFormat;
 import android.hardware.Camera;
-import android.location.Criteria;
 import android.location.Location;
 import android.location.LocationListener;
-import android.location.LocationManager;
 import android.os.Bundle;
 import android.view.*;
 import android.view.ViewGroup.LayoutParams;
@@ -21,91 +19,36 @@ import com.example.veiled.Factory.AlertDialogFactory;
 import com.example.veiled.Utils.DatabaseTable.Message;
 import com.example.veiled.R;
 import com.example.veiled.Utils.DatabaseConnection;
+import com.example.veiled.Utils.GpsPositioning;
 import com.microsoft.windowsazure.mobileservices.MobileServiceClient;
 import com.microsoft.windowsazure.mobileservices.ServiceFilterResponse;
 import com.microsoft.windowsazure.mobileservices.TableOperationCallback;
 
-
-/**
- * Created by Laur on 10/22/2014.
-*/
-
 public class MessageCreator extends Activity implements SurfaceHolder.Callback, LocationListener {
 
     private Location currentLocation;
-    Camera camera;
-    SurfaceView surfaceView;
-    SurfaceHolder surfaceHolder;
-    boolean previewing = false;
-    LayoutInflater controlInflater = null;
-    private LocationManager locationManager;
-    private String bestProvider;
+    private Camera camera;
+    private SurfaceView surfaceView;
+    private SurfaceHolder surfaceHolder;
+    private boolean previewing = false;
+    private LayoutInflater controlInflater = null;
+    private Button btnSaveMessage;
+    private GpsPositioning gps;
 
     final Context context = this;
 
-    /** Called when the activity is first created. */
     @Override
     public void onCreate(Bundle savedInstanceState) {
 
         super.onCreate(savedInstanceState);
-        setContentView(R.layout.cameradisplaywithrectangle);
-        setRequestedOrientation(ActivityInfo.SCREEN_ORIENTATION_LANDSCAPE);
+        initView();
 
-        getWindow().setFormat(PixelFormat.UNKNOWN);
-        surfaceView = (SurfaceView)findViewById(R.id.camerapreview);
-        surfaceHolder = surfaceView.getHolder();
-        surfaceHolder.addCallback(this);
-        surfaceHolder.setType(SurfaceHolder.SURFACE_TYPE_PUSH_BUFFERS);
 
-        controlInflater = LayoutInflater.from(getBaseContext());
-        View viewControl = controlInflater.inflate(R.layout.cameracontrol, null);
+        gps = new GpsPositioning();
+        currentLocation = gps.getLastKnownLocation(this, context);
 
-        LayoutParams layoutParamsControl
-                = new LayoutParams(LayoutParams.FILL_PARENT,
-                LayoutParams.FILL_PARENT);
-        this.addContentView(viewControl, layoutParamsControl);
+        createButton();
 
-        //GPS location region
-        locationManager = (LocationManager) getSystemService(LOCATION_SERVICE);
-        Criteria criteria = new Criteria();
-        criteria.setAccuracy(Criteria.ACCURACY_FINE);
-        criteria.setAltitudeRequired(true);
-        criteria.setBearingRequired(true);
-        bestProvider = locationManager.getBestProvider(criteria, false);
-        currentLocation = locationManager.getLastKnownLocation(bestProvider);
-
-        // Save message in database - Create event Post Message
-        Button btnSaveMessage = (Button) findViewById(R.id.postmessage);
-        // Binding Click event to Button
-        btnSaveMessage.setOnClickListener(new View.OnClickListener() {
-            public void onClick(View arg0) {
-                //save message in database
-                MobileServiceClient serviceClient = DatabaseConnection.getMobileService();
-                EditText edittextDescription = (EditText) findViewById(R.id.message);
-                Message currMessage = new Message(edittextDescription.getText().toString(), currentLocation.getLatitude(), currentLocation.getLongitude(), 0);
-
-                serviceClient.getTable(Message.class).insert(currMessage, new TableOperationCallback<Message>() {
-                    public void onCompleted(Message entity, Exception exception, ServiceFilterResponse response) {
-                        if (exception == null) {
-                            // Insert succeeded
-                            AlertDialog.Builder builder = AlertDialogFactory.CreateAlertDialogOneButtonMessage(MessageCreator.this, context, "Message posted", "The message has been posted at current position");
-                            // create alert dialog
-                            AlertDialog alertDialog = builder.create();
-                            // show it
-                            alertDialog.show();
-
-                        } else {
-                            // Insert failed
-                            AlertDialog.Builder builder = AlertDialogFactory.CreateAlertDialogOneButtonMessage(MessageCreator.this, context, "No internet connection!", "Please check your internet connection");
-                            // create alert dialog
-                            AlertDialog alertDialog = builder.create();
-                            // show it
-                            alertDialog.show();
-                        }
-                    }
-                    });
-              }
-        });
     }
 
     @Override
@@ -157,13 +100,13 @@ public class MessageCreator extends Activity implements SurfaceHolder.Callback, 
     @Override
     protected void onResume() {
         super.onResume();
-        locationManager.requestLocationUpdates( bestProvider, 10000, 1, this);
+        gps.requestLocationUpdates(this);
     }
 
     @Override
     protected void onPause() {
         super.onPause();
-        locationManager.removeUpdates(this);
+        gps.removeUpdates(this);
     }
 
     @Override
@@ -174,6 +117,60 @@ public class MessageCreator extends Activity implements SurfaceHolder.Callback, 
     @Override
     public void onProviderDisabled(String provider) {
 
+    }
+
+    public void initView(){
+        setContentView(R.layout.cameradisplaywithrectangle);
+        setRequestedOrientation(ActivityInfo.SCREEN_ORIENTATION_LANDSCAPE);
+
+        getWindow().setFormat(PixelFormat.UNKNOWN);
+
+        surfaceView = (SurfaceView)findViewById(R.id.camerapreview);
+        surfaceHolder = surfaceView.getHolder();
+        surfaceHolder.addCallback(this);
+        surfaceHolder.setType(SurfaceHolder.SURFACE_TYPE_PUSH_BUFFERS);
+
+        controlInflater = LayoutInflater.from(getBaseContext());
+        View viewControl = controlInflater.inflate(R.layout.cameracontrol, null);
+
+        LayoutParams layoutParamsControl
+                = new LayoutParams(LayoutParams.FILL_PARENT,
+                LayoutParams.FILL_PARENT);
+        this.addContentView(viewControl, layoutParamsControl);
+    }
+
+    public void createButton(){
+        btnSaveMessage = (Button) findViewById(R.id.postmessage);
+        // Binding Click event to Button
+        btnSaveMessage.setOnClickListener(new View.OnClickListener() {
+            public void onClick(View arg0) {
+                //save message in database
+                MobileServiceClient serviceClient = DatabaseConnection.getMobileService();
+                EditText edittextDescription = (EditText) findViewById(R.id.message);
+                Message currMessage = new Message(edittextDescription.getText().toString(), currentLocation.getLatitude(), currentLocation.getLongitude(), 0);
+
+                serviceClient.getTable(Message.class).insert(currMessage, new TableOperationCallback<Message>() {
+                    public void onCompleted(Message entity, Exception exception, ServiceFilterResponse response) {
+                        if (exception == null) {
+                            // Insert succeeded
+                            AlertDialog.Builder builder = AlertDialogFactory.CreateAlertDialogOneButtonMessage(MessageCreator.this, context, "Message posted", "The message has been posted at current position");
+                            // create alert dialog
+                            AlertDialog alertDialog = builder.create();
+                            // show it
+                            alertDialog.show();
+
+                        } else {
+                            // Insert failed
+                            AlertDialog.Builder builder = AlertDialogFactory.CreateAlertDialogOneButtonMessage(MessageCreator.this, context, "No internet connection!", "Please check your internet connection");
+                            // create alert dialog
+                            AlertDialog alertDialog = builder.create();
+                            // show it
+                            alertDialog.show();
+                        }
+                    }
+                });
+            }
+        });
     }
 }
 

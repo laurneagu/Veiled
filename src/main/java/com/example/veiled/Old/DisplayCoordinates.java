@@ -43,29 +43,6 @@ public class DisplayCoordinates extends Activity implements LocationListener, Su
         surfaceHolder.addCallback(this);
         surfaceHolder.setType(SurfaceHolder.SURFACE_TYPE_PUSH_BUFFERS);
 
-
-        /*
-        // Get the location manager
-        locationManager = (LocationManager) getSystemService(LOCATION_SERVICE);
-
-        // List all providers:
-        List<String> providers = locationManager.getAllProviders();
-        for (String provider : providers) {
-            printProvider(provider);
-        }
-
-        Criteria criteria = new Criteria();
-        criteria.setAccuracy(Criteria.ACCURACY_FINE);
-        criteria.setAltitudeRequired(true);
-        criteria.setBearingRequired(true);
-        bestProvider = locationManager.getBestProvider(criteria, false);
-        output.append("\n\nBEST Provider:\n");
-        printProvider(bestProvider);
-
-        output.append("\n\nLocations (starting with last known):");
-        Location location = locationManager.getLastKnownLocation(bestProvider);
-        printLocation(location);
-        */
      }
 
     /** Register for the updates when Activity is in foreground */
