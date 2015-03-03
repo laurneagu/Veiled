@@ -7,10 +7,9 @@ import android.location.Location;
  */
 public class PositionFinder {
 
-    public static Location SetMessagePosition(Location userLocation, float roll, float rotation){
-        Location messageLocation = userLocation;
+    public static double[] SetMessagePosition(Location userLocation, float roll, float rotation){
 
-        rotation += 180;
+        double[] vals = new double[2];
 
         // user GPS is broken or not connected, post to a fake position and tell the user
         if(userLocation == null) {
@@ -19,49 +18,44 @@ public class PositionFinder {
             userLocation.setLongitude(-18.5333);
         }
 
-        // S - E position
-        if( rotation < 90){
-            double newLatitude = userLocation.getLatitude()  - Math.sin(rotation);
-            messageLocation.setLatitude(newLatitude);
+        double r = 0.00002702702; // actually 3 / 111000
 
-            double newLongitude = userLocation.getLongitude()  + Math.cos(rotation);
-            messageLocation.setLongitude(newLongitude);
+        // S - E position
+        if(rotation < 0 && rotation > -90){
+            double newLatitude = userLocation.getLatitude()  - r * Math.sin(Math.toRadians(rotation));
+            vals[0] = newLatitude;
+
+            double newLongitude = userLocation.getLongitude()  + r * Math.cos(Math.toRadians(rotation));
+            vals[1] = newLongitude;
         }
         else {
             // N - E position
-            if(rotation >= 90 && rotation < 180){
-                double minimizedRotation = rotation - 90;
+            if (rotation < 90 && rotation > 0) {
+                double newLatitude = userLocation.getLatitude() + r * Math.sin(Math.toRadians(rotation));
+                vals[0] = newLatitude;
 
-                double newLatitude = userLocation.getLatitude()  + Math.sin(minimizedRotation);
-                messageLocation.setLatitude(newLatitude);
+                double newLongitude = userLocation.getLongitude() + r * Math.cos(Math.toRadians(rotation));
+                vals[1] = newLongitude;
+            } else {
+                // N - W position
+                if(rotation > 90 && rotation < 180){
+                    double newLatitude = userLocation.getLatitude()  + r * Math.sin(Math.toRadians(rotation));
+                    vals[0] = newLatitude;
 
-                double newLongitude = userLocation.getLongitude()  + Math.cos(minimizedRotation);
-                messageLocation.setLongitude(newLongitude);
-            }
-            else{
-                // N -W position
-                if(rotation >= 180 && rotation < 270){
-                    double minimizedRotation = rotation - 180;
-
-                    double newLatitude = userLocation.getLatitude()  + Math.sin(minimizedRotation);
-                    //messageLocation.setLatitude(newLatitude);
-
-                    double newLongitude = userLocation.getLongitude()  - Math.cos(minimizedRotation);
-                    //messageLocation.setLongitude(newLongitude);
+                    double newLongitude = userLocation.getLongitude()  - r * Math.cos(Math.toRadians(rotation));
+                    vals[1] = newLongitude;
                 }
                 // S - W position
-                else{
-                    double minimizedRotation = rotation - 270;
+                else {
+                    double newLatitude = userLocation.getLatitude()  - r * Math.sin(Math.toRadians(rotation));
+                    vals[0] = newLatitude;
 
-                    double newLatitude = userLocation.getLatitude()  - Math.sin(minimizedRotation);
-                    //messageLocation.setLatitude(newLatitude);
-
-                    double newLongitude = userLocation.getLongitude()  - Math.cos(minimizedRotation);
-                    //messageLocation.setLongitude(newLongitude);
+                    double newLongitude = userLocation.getLongitude()  - r * Math.cos(Math.toRadians(rotation));
+                    vals[1] = newLongitude;
                 }
             }
         }
 
-        return messageLocation;
+        return vals;
     }
 }

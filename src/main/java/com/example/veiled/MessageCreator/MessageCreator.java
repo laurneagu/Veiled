@@ -19,6 +19,7 @@ import android.view.ViewGroup.LayoutParams;
 import android.widget.Button;
 import android.widget.EditText;
 import android.widget.TextView;
+import android.widget.Toast;
 import com.example.veiled.Components.IFlagPoster;
 import com.example.veiled.Factory.AlertDialogFactory;
 import com.example.veiled.Utils.DatabaseTable.Message;
@@ -164,14 +165,39 @@ public class MessageCreator extends Activity implements SurfaceHolder.Callback, 
                 EditText edittextDescription = (EditText) findViewById(R.id.message);
 
                 // calculate position for the message to be posted
-                Location postPosition = currentLocation;
+                double[] postPos = new double[2];
                 if(sensorValues != null)
-                    postPosition = PositionFinder.SetMessagePosition(currentLocation, sensorValues[0], sensorValues[1]);
+                    postPos = PositionFinder.SetMessagePosition(currentLocation, sensorValues[0], sensorValues[1]);
 
+                //Toast.makeText(getApplicationContext(), currentLocation.getLatitude() + " -- " + currentLocation.getLongitude(), Toast.LENGTH_LONG).show();
                 Message currMessage = new Message(edittextDescription.getText().toString(),
-                                        postPosition.getLatitude(), postPosition.getLongitude(), 0);
+                        postPos[0], postPos[1], 0);
+
+                Message currMessage2 = new Message(edittextDescription.getText().toString(),
+                        currentLocation.getLatitude(), currentLocation.getLongitude(), 0);
 
                 serviceClient.getTable(Message.class).insert(currMessage, new TableOperationCallback<Message>() {
+                    public void onCompleted(Message entity, Exception exception, ServiceFilterResponse response) {
+                        if (exception == null) {
+                            // Insert succeeded
+                            AlertDialog.Builder builder = AlertDialogFactory.CreateAlertDialogOneButtonMessage(MessageCreator.this, context, "Message posted", "The message has been posted at current position");
+                            // create alert dialog
+                            AlertDialog alertDialog = builder.create();
+                            // show it
+                            alertDialog.show();
+
+                        } else {
+                            // Insert failed
+                            AlertDialog.Builder builder = AlertDialogFactory.CreateAlertDialogOneButtonMessage(MessageCreator.this, context, "No internet connection!", "Please check your internet connection");
+                            // create alert dialog
+                            AlertDialog alertDialog = builder.create();
+                            // show it
+                            alertDialog.show();
+                        }
+                    }
+                });
+
+                serviceClient.getTable(Message.class).insert(currMessage2, new TableOperationCallback<Message>() {
                     public void onCompleted(Message entity, Exception exception, ServiceFilterResponse response) {
                         if (exception == null) {
                             // Insert succeeded
