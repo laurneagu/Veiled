@@ -22,5 +22,10 @@
             android:layout_height="190dp"
             android:text="My text here.."
             android:gravity="center" android:layout_gravity="center_horizontal|top" android:textColor="#ffffffff"/>
+    <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="45dp"
+            android:textAppearance="?android:attr/textAppearanceMedium"
+            android:id="@+id/sensorValues" android:layout_gravity="left|bottom"/>
 
 </FrameLayout>
