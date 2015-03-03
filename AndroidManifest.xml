@@ -14,17 +14,14 @@
                 <category android:name="android.intent.category.LAUNCHER"/>
             </intent-filter>
         </activity>
-        <activity android:name="com.example.veiled.Old.DisplayCoordinates"/>
 
         <activity android:name="com.example.veiled.MessageCreator.MessageCreator"
                   android:windowSoftInputMode="stateHidden"
                   android:theme="@android:style/Theme.NoTitleBar"/>
 
-        <activity android:name="com.example.veiled.Old.GetDirection"/>
         <activity android:name="com.example.veiled.MessageViewer.MessageViewer"
                   android:theme="@android:style/Theme.NoTitleBar"/>
         <activity android:name="com.example.veiled.MessageViewer.CompassTest"/>
-        <activity android:name=".Utils.SensorActivity"/>
     </application>
     <uses-permission android:name="android.permission.INTERNET"></uses-permission>
     <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION"></uses-permission>
