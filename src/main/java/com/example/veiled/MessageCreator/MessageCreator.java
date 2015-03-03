@@ -8,6 +8,9 @@ import android.content.Context;
 import android.content.pm.ActivityInfo;
 import android.graphics.PixelFormat;
 import android.hardware.Camera;
+import android.hardware.Sensor;
+import android.hardware.SensorEvent;
+import android.hardware.SensorEventListener;
 import android.location.Location;
 import android.location.LocationListener;
 import android.os.Bundle;
@@ -15,16 +18,20 @@ import android.view.*;
 import android.view.ViewGroup.LayoutParams;
 import android.widget.Button;
 import android.widget.EditText;
+import android.widget.TextView;
+import com.example.veiled.Components.IFlagPoster;
 import com.example.veiled.Factory.AlertDialogFactory;
 import com.example.veiled.Utils.DatabaseTable.Message;
 import com.example.veiled.R;
 import com.example.veiled.Utils.DatabaseConnection;
 import com.example.veiled.Utils.GpsPositioning;
+import com.example.veiled.Utils.PositionFinder;
+import com.example.veiled.Utils.SensorManagement;
 import com.microsoft.windowsazure.mobileservices.MobileServiceClient;
 import com.microsoft.windowsazure.mobileservices.ServiceFilterResponse;
 import com.microsoft.windowsazure.mobileservices.TableOperationCallback;
 
-public class MessageCreator extends Activity implements SurfaceHolder.Callback, LocationListener {
+public class MessageCreator extends Activity implements SurfaceHolder.Callback, LocationListener, SensorEventListener {
 
     private Location currentLocation;
     private Camera camera;
@@ -33,8 +40,11 @@ public class MessageCreator extends Activity implements SurfaceHolder.Callback, 
     private boolean previewing = false;
     private LayoutInflater controlInflater = null;
     private Button btnSaveMessage;
+    private TextView textSensorValues;
     private GpsPositioning gps;
+    private SensorManagement sensorManager;
 
+    private float[] sensorValues;
     final Context context = this;
 
     @Override
@@ -43,12 +53,14 @@ public class MessageCreator extends Activity implements SurfaceHolder.Callback, 
         super.onCreate(savedInstanceState);
         initView();
 
-
         gps = new GpsPositioning();
         currentLocation = gps.getLastKnownLocation(this, context);
 
-        createButton();
+        sensorValues = new float[2];
+        sensorManager = new SensorManagement();
+        sensorManager.InitializeSensors(this,context);
 
+        createButtons();
     }
 
     @Override
@@ -89,7 +101,7 @@ public class MessageCreator extends Activity implements SurfaceHolder.Callback, 
 
     @Override
     public void onLocationChanged(Location location) {
-        this.currentLocation = location;
+        currentLocation = location;
     }
 
     @Override
@@ -101,6 +113,7 @@ public class MessageCreator extends Activity implements SurfaceHolder.Callback, 
     protected void onResume() {
         super.onResume();
         gps.requestLocationUpdates(this);
+        sensorManager.ResumeActivityRegisterSensors(this);
     }
 
     @Override
@@ -139,7 +152,9 @@ public class MessageCreator extends Activity implements SurfaceHolder.Callback, 
         this.addContentView(viewControl, layoutParamsControl);
     }
 
-    public void createButton(){
+    public void createButtons(){
+        textSensorValues = (TextView) findViewById(R.id.sensorValues);
+
         btnSaveMessage = (Button) findViewById(R.id.postmessage);
         // Binding Click event to Button
         btnSaveMessage.setOnClickListener(new View.OnClickListener() {
@@ -147,7 +162,14 @@ public class MessageCreator extends Activity implements SurfaceHolder.Callback, 
                 //save message in database
                 MobileServiceClient serviceClient = DatabaseConnection.getMobileService();
                 EditText edittextDescription = (EditText) findViewById(R.id.message);
-                Message currMessage = new Message(edittextDescription.getText().toString(), currentLocation.getLatitude(), currentLocation.getLongitude(), 0);
+
+                // calculate position for the message to be posted
+                Location postPosition = currentLocation;
+                if(sensorValues != null)
+                    postPosition = PositionFinder.SetMessagePosition(currentLocation, sensorValues[0], sensorValues[1]);
+
+                Message currMessage = new Message(edittextDescription.getText().toString(),
+                                        postPosition.getLatitude(), postPosition.getLongitude(), 0);
 
                 serviceClient.getTable(Message.class).insert(currMessage, new TableOperationCallback<Message>() {
                     public void onCompleted(Message entity, Exception exception, ServiceFilterResponse response) {
@@ -171,6 +193,20 @@ public class MessageCreator extends Activity implements SurfaceHolder.Callback, 
                 });
             }
         });
+    }
+
+    @Override
+    public void onSensorChanged(SensorEvent event) {
+        sensorValues = sensorManager.GetSensorValues(event);
+
+        if(sensorValues != null){
+            textSensorValues.setText("roll is " +  sensorValues[0] + "\n" + "rotation is " + sensorValues[1]);
+        }
+    }
+
+    @Override
+    public void onAccuracyChanged(Sensor sensor, int accuracy) {
+
     }
 }
 
