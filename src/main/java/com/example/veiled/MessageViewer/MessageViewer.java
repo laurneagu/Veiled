@@ -89,7 +89,6 @@ public class MessageViewer extends Activity implements SurfaceHolder.Callback, L
         // show messages from 5 meters around
         int prevTextViewId = 0;
 
-
         // get screen size in px
         Display display = getWindowManager().getDefaultDisplay();
         Point size = new Point();
@@ -102,8 +101,8 @@ public class MessageViewer extends Activity implements SurfaceHolder.Callback, L
             double curTextViewId = prevTextViewId + 1;
 
             textmessage.setId((int)curTextViewId);
-            if (Math.abs(message.latitude - currentLocation.getLatitude()) < 0.00005 &&
-                Math.abs(message.longitude - currentLocation.getLongitude()) < 0.00005)
+            if (Math.abs(message.latitude - currentLocation.getLatitude()) < 0.00010 && //0.00005 &&
+                Math.abs(message.longitude - currentLocation.getLongitude()) < 0.00010)//0.00005)
                     textmessage.setText(message.message);
             else
                     textmessage.setText("Not in the area");

@@ -8,8 +8,6 @@ import android.widget.Button;
 import com.example.veiled.MessageCreator.MessageCreator;
 import com.example.veiled.MessageViewer.MessageViewer;
 import com.example.veiled.Utils.DatabaseConnection;
-import com.example.veiled.Utils.SensorActivity;
-
 
 public class MainMenu extends Activity {
     /**
@@ -59,23 +57,6 @@ public class MainMenu extends Activity {
                 startActivity(nextScreen);
             }
         });
-
-
-        ////// TEST AREA !
-
-        // Create event Post Message
-        Button btnTestSensors = (Button) findViewById(R.id.testSensors);
-
-        // Binding Click event to Button
-        btnTestSensors.setOnClickListener(new View.OnClickListener() {
-            public void onClick(View arg0) {
-                //Starting a new Intent
-                nextScreen = new Intent(getApplicationContext(), SensorActivity.class);
-                //Closing SecondScreen Activity
-                startActivity(nextScreen);
-            }
-        });
-
 
     }
 }

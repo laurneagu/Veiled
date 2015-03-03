@@ -134,7 +134,7 @@ public class MessageCreator extends Activity implements SurfaceHolder.Callback, 
 
     public void initView(){
         setContentView(R.layout.cameradisplaywithrectangle);
-        setRequestedOrientation(ActivityInfo.SCREEN_ORIENTATION_LANDSCAPE);
+        //setRequestedOrientation(ActivityInfo.SCREEN_ORIENTATION_LANDSCAPE);
 
         getWindow().setFormat(PixelFormat.UNKNOWN);
 
