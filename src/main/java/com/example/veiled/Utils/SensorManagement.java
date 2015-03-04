@@ -26,7 +26,7 @@ public class SensorManagement {
     float last_pitch;
     float last_roll;
 
-    static final float ALPHA = 0.15f;
+    static final float ALPHA = 0.35f;
 
     public void InitializeSensors(Activity curr_activity, Context curr_context){
         mSensorManager = (SensorManager) curr_activity.getSystemService(curr_context.SENSOR_SERVICE);
@@ -42,19 +42,16 @@ public class SensorManagement {
     public float[] GetSensorValues(SensorEvent curr_event) {
         // last_roll, rotation
         float[] sensorFinalValues = new float[2];
-
-        float azimuth = curr_event.values[0];
         float pitch = curr_event.values[1];
         float roll = curr_event.values[2];
 
         if (last_azimuth == last_pitch && last_azimuth == last_roll) {
-            last_azimuth = azimuth;
             last_pitch = pitch;
             last_roll = roll;
             return null;
         }
 
-        last_azimuth = last_azimuth + ALPHA * (azimuth - last_azimuth);
+
         last_pitch = last_pitch + ALPHA * (pitch - last_pitch);
 
         if (curr_event.sensor.getType() == Sensor.TYPE_ACCELEROMETER) {
@@ -78,7 +75,11 @@ public class SensorManagement {
                 SensorManager.getOrientation(R2, orientation);
 
                 float azimut = orientation[0];
-                float rotation = -azimut * 360 / (2 * 3.14159f);
+                if(last_azimuth != 0)
+                    last_azimuth = last_azimuth + ALPHA * (azimut - last_azimuth);
+                else
+                    last_azimuth = azimut;
+                float rotation = -last_azimuth * 360 / (2 * 3.14159f);
 
                 sensorFinalValues[1] = Math.round(rotation);
             }

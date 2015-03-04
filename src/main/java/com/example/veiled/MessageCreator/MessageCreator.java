@@ -2,6 +2,7 @@ package com.example.veiled.MessageCreator;
 
 import java.io.IOException;
 
+import android.annotation.SuppressLint;
 import android.app.Activity;
 import android.app.AlertDialog;
 import android.content.Context;
@@ -19,8 +20,6 @@ import android.view.ViewGroup.LayoutParams;
 import android.widget.Button;
 import android.widget.EditText;
 import android.widget.TextView;
-import android.widget.Toast;
-import com.example.veiled.Components.IFlagPoster;
 import com.example.veiled.Factory.AlertDialogFactory;
 import com.example.veiled.Utils.DatabaseTable.Message;
 import com.example.veiled.R;
@@ -68,6 +67,20 @@ public class MessageCreator extends Activity implements SurfaceHolder.Callback, 
     public void surfaceChanged(SurfaceHolder holder, int format, int width,
                                int height) {
         // TODO Auto-generated method stub
+        int cameraId = -1;
+        // Search for the front facing camera
+        int numberOfCameras = Camera.getNumberOfCameras();
+        for (int i = 0; i < numberOfCameras; i++) {
+            Camera.CameraInfo info = new Camera.CameraInfo();
+            Camera.getCameraInfo(i, info);
+            if (info.facing == Camera.CameraInfo.CAMERA_FACING_FRONT) {
+                //Log.d(TAG, "Camera found");
+                cameraId = i;
+                break;
+            }
+        }
+        this.setCameraDisplayOrientation(cameraId, this.camera);
+
         if(previewing){
             camera.stopPreview();
             previewing = false;
@@ -173,8 +186,8 @@ public class MessageCreator extends Activity implements SurfaceHolder.Callback, 
                 Message currMessage = new Message(edittextDescription.getText().toString(),
                         postPos[0], postPos[1], 0);
 
-                Message currMessage2 = new Message(edittextDescription.getText().toString(),
-                        currentLocation.getLatitude(), currentLocation.getLongitude(), 0);
+                //Message currMessage2 = new Message(edittextDescription.getText().toString(),
+                //        currentLocation.getLatitude(), currentLocation.getLongitude(), 0);
 
                 serviceClient.getTable(Message.class).insert(currMessage, new TableOperationCallback<Message>() {
                     public void onCompleted(Message entity, Exception exception, ServiceFilterResponse response) {
@@ -197,6 +210,7 @@ public class MessageCreator extends Activity implements SurfaceHolder.Callback, 
                     }
                 });
 
+                /*
                 serviceClient.getTable(Message.class).insert(currMessage2, new TableOperationCallback<Message>() {
                     public void onCompleted(Message entity, Exception exception, ServiceFilterResponse response) {
                         if (exception == null) {
@@ -217,6 +231,7 @@ public class MessageCreator extends Activity implements SurfaceHolder.Callback, 
                         }
                     }
                 });
+                */
             }
         });
     }
@@ -227,6 +242,44 @@ public class MessageCreator extends Activity implements SurfaceHolder.Callback, 
 
         if(sensorValues != null){
             textSensorValues.setText("roll is " +  sensorValues[0] + "\n" + "rotation is " + sensorValues[1]);
+        }
+    }
+
+    /**
+     * Calling this method makes the camera image show in the same orientation as the display.
+     * NOTE: This method is not allowed to be called during preview.
+     *
+     * @param cameraId
+     * @param camera
+     */
+    @SuppressLint("NewApi")
+    public void setCameraDisplayOrientation(int cameraId, android.hardware.Camera camera) {
+        int rotation = ((WindowManager)getApplicationContext().getSystemService(Context.WINDOW_SERVICE)).getDefaultDisplay()
+                .getRotation();
+        int degrees = 0;
+        switch (rotation) {
+            case Surface.ROTATION_0: degrees = 0; break;
+            case Surface.ROTATION_90: degrees = 90; break;
+            case Surface.ROTATION_180: degrees = 180; break;
+            case Surface.ROTATION_270: degrees = 270; break;
+        }
+
+        int result;
+        //if (Utils.hasGingerbread()) {
+        android.hardware.Camera.CameraInfo info =
+                new android.hardware.Camera.CameraInfo();
+        android.hardware.Camera.getCameraInfo(cameraId, info);
+        if (info.facing == Camera.CameraInfo.CAMERA_FACING_FRONT) {
+            result = (info.orientation + degrees) % 360;
+            result = (360 - result) % 360;  // compensate the mirror
+        } else {  // back-facing
+            result = (info.orientation - degrees + 360) % 360;
+        }
+        try {
+            camera.setDisplayOrientation(result);
+        } catch (Exception e) {
+            // may fail on old OS versions. ignore it.
+            e.printStackTrace();
         }
     }
 
