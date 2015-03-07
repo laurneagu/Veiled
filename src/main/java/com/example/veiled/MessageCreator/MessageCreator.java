@@ -184,7 +184,8 @@ public class MessageCreator extends Activity implements SurfaceHolder.Callback, 
 
                 //Toast.makeText(getApplicationContext(), currentLocation.getLatitude() + " -- " + currentLocation.getLongitude(), Toast.LENGTH_LONG).show();
                 Message currMessage = new Message(edittextDescription.getText().toString(),
-                        postPos[0], postPos[1], 0);
+                        //postPos[0], postPos[1], 0);
+                        44.44492244901658, 26.056574334499892,  75);
 
                 //Message currMessage2 = new Message(edittextDescription.getText().toString(),
                 //        currentLocation.getLatitude(), currentLocation.getLongitude(), 0);

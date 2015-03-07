@@ -27,6 +27,7 @@ import android.view.ViewGroup.LayoutParams;
 import android.widget.FrameLayout;
 import android.widget.RelativeLayout;
 import android.widget.TextView;
+import android.widget.Toast;
 import com.example.veiled.Utils.DatabaseConnection;
 import com.example.veiled.Utils.MessageQuery;
 import com.example.veiled.Utils.DatabaseTable.Message;
@@ -60,11 +61,12 @@ public class MessageViewer extends Activity implements SurfaceHolder.Callback, L
     private SensorManagement sensorManager;
 
     double to_message_rotation;
+    double message_roll;
     int width;
     int height;
     double last_position_in_screen;
-    static final float ALPHA = 0.35f;
-
+    static final float ALPHA = 0.55f;
+    static final float BETA = 0.05f;
 
     /** Called when the activity is first created. */
     @Override
@@ -167,6 +169,7 @@ public class MessageViewer extends Activity implements SurfaceHolder.Callback, L
             }
 
             // partial solution -- TODO must pass all values
+            message_roll = message.altitude / 15;
             textToView = textmessage;
 
             viewMessagesLayout.addView(textmessage);
@@ -309,14 +312,30 @@ public class MessageViewer extends Activity implements SurfaceHolder.Callback, L
     public void onSensorChanged(SensorEvent event) {
         sensorValues = sensorManager.GetSensorValues(event);
 
-        if(sensorValues != null){
-            textSensorValues.setText("roll is " +  sensorValues[0] + "\n" + "rotation is " + sensorValues[1] + "\n" +
-                            " rotation to message is " + to_message_rotation);
+        if(sensorValues != null) {
+            textSensorValues.setText("roll is " + sensorValues[0] + "\n" + "rotation is " + sensorValues[1] + "\n" +
+                    " rotation to message is " + to_message_rotation);
 
             double position_in_screen = sensorValues[1] - to_message_rotation;
-            if(last_position_in_screen != 0 )
+            boolean alreadyThere = false;
+            double difference = Math.abs(position_in_screen - last_position_in_screen);
+            if(last_position_in_screen != 0 &&  difference > 10 && difference < 60) {
                 last_position_in_screen = last_position_in_screen + ALPHA * (position_in_screen - last_position_in_screen);
-            else last_position_in_screen = position_in_screen;
+                alreadyThere = false;
+            }
+            else if(difference < 10) {
+                last_position_in_screen = last_position_in_screen + BETA * (position_in_screen - last_position_in_screen);
+                alreadyThere = false;
+            }
+            else if(difference > 60){
+                if(alreadyThere)
+                    last_position_in_screen = position_in_screen;
+                else
+                    alreadyThere = true;
+            }
+               // last_position_in_screen = last_position_in_screen + ALPHA * (position_in_screen - last_position_in_screen);
+               // else last_position_in_screen = position_in_screen;
+
 
             // set edittext position
             if(textToView != null) {
@@ -324,11 +343,18 @@ public class MessageViewer extends Activity implements SurfaceHolder.Callback, L
                         new RelativeLayout.LayoutParams(RelativeLayout.LayoutParams.WRAP_CONTENT,
                                 RelativeLayout.LayoutParams.WRAP_CONTENT);
 
-                params.leftMargin = width / 4 + 150 + (int)Math.round(last_position_in_screen) * 20 ;
-                //params.rightMargin = 30;
-                params.topMargin = height/4 + 150;
-                textToView.setHeight(300);
-                textToView.setWidth(300);
+                int widthRatio = 7;
+                int heightRatio = 12;
+
+                int elemSizeWidth = width / widthRatio;
+                int elemSizeHeight = height / heightRatio;
+
+                params.leftMargin = width / 4 + elemSizeWidth + (int) Math.round(last_position_in_screen) * 20; // + 20 *70* (int)Math.signum(position_in_screen - last_position_in_screen);
+
+                params.topMargin = height/4 +  elemSizeHeight * (1 - (int)(sensorValues[0] - message_roll)) ;
+
+                textToView.setHeight(2 * elemSizeHeight);
+                textToView.setWidth(2 * elemSizeWidth);
                 textToView.setTextSize(20);
                 textToView.setText("Laur se misca");
 
@@ -350,7 +376,6 @@ public class MessageViewer extends Activity implements SurfaceHolder.Callback, L
     public void onAccuracyChanged(Sensor sensor, int accuracy) {
 
     }
-
 }
 
 
