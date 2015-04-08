@@ -6,13 +6,9 @@ import java.util.List;
 
 import android.annotation.SuppressLint;
 import android.app.Activity;
-import android.app.AlertDialog;
 import android.content.Context;
-import android.content.DialogInterface;
-import android.content.pm.ActivityInfo;
 import android.graphics.PixelFormat;
 import android.graphics.Point;
-import android.graphics.drawable.Drawable;
 import android.hardware.Camera;
 import android.hardware.Sensor;
 import android.hardware.SensorEvent;
@@ -24,50 +20,49 @@ import android.location.LocationManager;
 import android.os.Bundle;
 import android.view.*;
 import android.view.ViewGroup.LayoutParams;
-import android.widget.FrameLayout;
+import android.widget.ImageView;
 import android.widget.RelativeLayout;
 import android.widget.TextView;
-import android.widget.Toast;
 import com.example.veiled.Utils.DatabaseConnection;
+import com.example.veiled.Utils.GpsPositioning;
 import com.example.veiled.Utils.MessageQuery;
 import com.example.veiled.Utils.DatabaseTable.Message;
 import com.example.veiled.R;
 import com.example.veiled.Utils.SensorManagement;
 import com.microsoft.windowsazure.mobileservices.MobileServiceClient;
-
-
-/**
- * Created by Laur on 10/22/2014.
- */
-
+import com.microsoft.windowsazure.mobileservices.MobileServiceTable;
 
 public class MessageViewer extends Activity implements SurfaceHolder.Callback, LocationListener,SensorEventListener {
-    static List<Message> m_Messages= new ArrayList<Message>();
     Camera camera;
     SurfaceView surfaceView;
     SurfaceHolder surfaceHolder;
     boolean previewing = false;
     LayoutInflater controlInflater = null;
 
-    //gps position variables
-    // private Location currentLocation; <-- uncomment this after
     private LocationManager locationManager;
     private String bestProvider;
+    private Location currentLocation;
+    private GpsPositioning gps;
 
-    private TextView textToView;
+    private ArrayList<ImageView>imageViews;
+    private ArrayList<Double> toMessageRotation;
+    private ArrayList<Double> lastRollArray;
+    private ArrayList<Double> lastPositionArray;
 
+    private boolean alreadyThere = false;
     private TextView textSensorValues;
     private float[] sensorValues;
     private SensorManagement sensorManager;
 
-    double to_message_rotation;
-    double message_roll;
+    final Context context = this;
+
     int width;
     int height;
-    double last_position_in_screen;
+    double lastRollPosition;
     static final float ALPHA = 0.55f;
     static final float BETA = 0.05f;
-
+    private boolean alreadyThere2 = false;
+    boolean beenHere = false;
     /** Called when the activity is first created. */
     @Override
     public void onCreate(Bundle savedInstanceState) {
@@ -75,8 +70,6 @@ public class MessageViewer extends Activity implements SurfaceHolder.Callback, L
         super.onCreate(savedInstanceState);
 
         setContentView(R.layout.viewmessagescamera);
-        //setRequestedOrientation(ActivityInfo.SCREEN_ORIENTATION_LANDSCAPE);
-
         getWindow().setFormat(PixelFormat.UNKNOWN);
         surfaceView = (SurfaceView)findViewById(R.id.camerapreview2);
         surfaceHolder = surfaceView.getHolder();
@@ -91,8 +84,9 @@ public class MessageViewer extends Activity implements SurfaceHolder.Callback, L
         criteria.setAltitudeRequired(true);
         criteria.setBearingRequired(true);
         bestProvider = locationManager.getBestProvider(criteria, false);
-
-        //currentLocation = locationManager.getLastKnownLocation(bestProvider);
+        locationManager.requestLocationUpdates(LocationManager.GPS_PROVIDER, 0, 0, this);
+        gps = new GpsPositioning();
+        currentLocation = gps.getLastKnownLocation(this, context);
 
         // textview sensors
         textSensorValues = new TextView(getApplicationContext());//(TextView) findViewById(R.id.sensorValues);
@@ -112,9 +106,14 @@ public class MessageViewer extends Activity implements SurfaceHolder.Callback, L
 
         // query database
         MobileServiceClient serviceClient = DatabaseConnection.getMobileService();
+        MobileServiceTable<Message> messagesTable = serviceClient.getTable(Message.class);
         MessageQuery query = new MessageQuery(this);
-        serviceClient.getTable(Message.class).execute(query);
 
+        messagesTable.where().field("latitude").
+                lt(currentLocation.getLatitude() + 0.0002).and().field("latitude").
+                gt(currentLocation.getLatitude() - 0.0002).and().field("longitude").
+                lt(currentLocation.getLongitude() + 0.0002).and().field("longitude").
+                gt(currentLocation.getLongitude() - 0.0002).execute(query);
     }
 
     public void AddMessages(List<Message> messages){
@@ -134,18 +133,42 @@ public class MessageViewer extends Activity implements SurfaceHolder.Callback, L
         height = size.y;
 
         // fake location
-        double userLatitude = 44.44489739;
-        double userLongitude = 26.05656421;
+        //double userLatitude = 44.44489739;
+        //double userLongitude = 26.05656421;
 
+        double userLatitude = currentLocation.getLatitude();
+        double userLongitude = currentLocation.getLongitude();
+
+        // for magic
+        /*
+       for(int i = 0 ; i < messages.size() ; i ++){
+            if(Math.abs(messages.get(i).longitude - userLongitude) >= 0.00001 ||
+               Math.abs(messages.get(i).latitude - userLatitude) >= 0.00001 ) {
+                messages.remove(i);
+                i--;
+            }
+        }
+        */
+
+        double to_message_rotation;
+        imageViews = new ArrayList<ImageView>(messages.size());
+        toMessageRotation = new ArrayList<Double>(messages.size());
+        lastPositionArray = new ArrayList<Double>(messages.size());
+        lastRollArray = new ArrayList<Double>(messages.size());
+        int count = -1;
         for( Message message : messages) {
-            TextView textmessage  = new TextView(this);
-            double curTextViewId = prevTextViewId + 1;
+            count++;
+            ImageView imageMessage  = new ImageView(this);
+            double curImageViewId = prevTextViewId + 1;
 
-            textmessage.setId((int)curTextViewId);
+            imageMessage.setId((int)curImageViewId);
 
             double diffLat = Math.abs(userLatitude - message.latitude);
             double diffLong = Math.abs(userLongitude - message.longitude);
 
+            /*
+            folosit pentru a calcula alfa...rotatia mesajului in cadrane
+             */
             to_message_rotation  = 57.2957795 * Math.atan(diffLat/diffLong); // radians
 
             // N - E
@@ -167,15 +190,16 @@ public class MessageViewer extends Activity implements SurfaceHolder.Callback, L
                         to_message_rotation  = - to_message_rotation;
                     }
             }
-
             // partial solution -- TODO must pass all values
-            message_roll = message.altitude / 15;
-            textToView = textmessage;
-
-            viewMessagesLayout.addView(textmessage);
+            //textToView = textmessage;
+            imageViews.add(imageMessage);
+            toMessageRotation.add(to_message_rotation);
+            lastPositionArray.add(to_message_rotation);
+            lastRollArray.add(message.altitude/15);
+            viewMessagesLayout.addView(imageMessage);
         }
 
-        if(beenHere == false) {
+        if(!beenHere) {
             viewMessagesLayout.addView(textSensorValues);
             beenHere = true;
         }
@@ -186,8 +210,6 @@ public class MessageViewer extends Activity implements SurfaceHolder.Callback, L
 
         this.addContentView(viewMessagesLayout, layoutParamsControl);
     }
-
-    boolean beenHere = false;
     @Override
     public void surfaceChanged(SurfaceHolder holder, int format, int width,
                                int height) {
@@ -223,13 +245,6 @@ public class MessageViewer extends Activity implements SurfaceHolder.Callback, L
         }
     }
 
-    /**
-     * Calling this method makes the camera image show in the same orientation as the display.
-     * NOTE: This method is not allowed to be called during preview.
-     *
-     * @param cameraId
-     * @param camera
-     */
     @SuppressLint("NewApi")
     public void setCameraDisplayOrientation(int cameraId, android.hardware.Camera camera) {
         int rotation = ((WindowManager)getApplicationContext().getSystemService(Context.WINDOW_SERVICE)).getDefaultDisplay()
@@ -265,23 +280,16 @@ public class MessageViewer extends Activity implements SurfaceHolder.Callback, L
     protected void onResume() {
         super.onResume();
         locationManager.requestLocationUpdates( bestProvider, 100, 1, this);
-
-        MobileServiceClient serviceClient = DatabaseConnection.getMobileService();
-        MessageQuery query = new MessageQuery(this);
-        serviceClient.getTable(Message.class).execute(query);
-
         sensorManager.ResumeActivityRegisterSensors(this);
     }
 
     @Override
     public void surfaceCreated(SurfaceHolder holder) {
-        // TODO Auto-generated method stub
         camera = Camera.open();
     }
 
     @Override
     public void surfaceDestroyed(SurfaceHolder holder) {
-        // TODO Auto-generated method stub
         camera.stopPreview();
         camera.release();
         camera = null;
@@ -290,7 +298,7 @@ public class MessageViewer extends Activity implements SurfaceHolder.Callback, L
 
     @Override
     public void onLocationChanged(Location location) {
-        //this.currentLocation = location;
+        this.currentLocation = location;
     }
 
     @Override
@@ -308,74 +316,131 @@ public class MessageViewer extends Activity implements SurfaceHolder.Callback, L
 
     }
 
+    double last_rotation;
+    double rotation;
+    double alpha = 0.01;
+    double roll;
+    double last_roll;
+
+    private void setLastRotation(double rotation, int number, double rotationInArray){
+        double position_in_screen = rotation - rotationInArray;
+        double difference = Math.abs(position_in_screen - lastPositionArray.get(number));
+        if(difference > 10 && difference < 60) {
+            lastPositionArray.set(number, lastPositionArray.get(number) + ALPHA * (position_in_screen - lastPositionArray.get(number)));
+            alreadyThere = false;
+        }
+        else if(difference < 10) {
+            lastPositionArray.set(number, lastPositionArray.get(number) + BETA * (position_in_screen - lastPositionArray.get(number)));
+            alreadyThere = false;
+        }
+        else if(difference > 60){
+            if(alreadyThere)
+                lastPositionArray.set(number, position_in_screen);
+            else
+                alreadyThere = true;
+        }
+    }
+
+    private void setLastRoll(double roll, int number){
+        double positionInScreenRoll;
+        positionInScreenRoll = lastRollArray.get(number) - roll;
+        if(lastRollPosition == 0)
+            lastRollPosition = positionInScreenRoll;
+
+        double differenceRoll = Math.abs(positionInScreenRoll - lastRollPosition);
+        if (lastRollPosition != 0 && differenceRoll > 2 && differenceRoll < 5) {
+            lastRollPosition = lastRollPosition + ALPHA * (positionInScreenRoll - lastRollPosition);
+            alreadyThere2 = false;
+        } else if (differenceRoll <= 2) {
+            lastRollPosition = lastRollPosition + BETA * (positionInScreenRoll - lastRollPosition);
+            alreadyThere2 = false;
+        } else if (differenceRoll > 5) {
+            if (alreadyThere2)
+                lastRollPosition = positionInScreenRoll;
+            else
+                alreadyThere2 = true;
+        }
+    }
+
+    private void setImagesOnCamera(int number){
+        if(imageViews.get(number) != null) {
+            RelativeLayout.LayoutParams params =
+                    new RelativeLayout.LayoutParams(RelativeLayout.LayoutParams.WRAP_CONTENT,
+                            RelativeLayout.LayoutParams.WRAP_CONTENT);
+
+            int widthRatio = 7;
+            int heightRatio = 12;
+
+            int elemSizeWidth = width / widthRatio;
+            int elemSizeHeight = height / heightRatio;
+
+            params.leftMargin = width / 4 + elemSizeWidth + (int) Math.round(lastPositionArray.get(number)) * 20;
+            params.rightMargin = width / 4 + elemSizeWidth - (int) Math.round(lastPositionArray.get(number)) * 20;
+
+            params.topMargin = height/4 +  elemSizeHeight + (int)Math.round(lastRollPosition*150);
+            //pus asta
+            params.bottomMargin = height/4 +  elemSizeHeight - (int)Math.round(lastRollPosition*150);
+            params.height = 2 * elemSizeHeight;
+            params.width = 2 * elemSizeWidth;
+            if(number == 0)
+                imageViews.get(number).setImageResource(R.drawable.coffe_image);
+            else
+                imageViews.get(number).setImageResource(R.drawable.cupcake);
+            imageViews.get(number).setLayoutParams(params);
+
+        }
+    }
+
     @Override
     public void onSensorChanged(SensorEvent event) {
         sensorValues = sensorManager.GetSensorValues(event);
 
         if(sensorValues != null) {
-            textSensorValues.setText("roll is " + sensorValues[0] + "\n" + "rotation is " + sensorValues[1] + "\n" +
-                    " rotation to message is " + to_message_rotation);
 
-            double position_in_screen = sensorValues[1] - to_message_rotation;
-            boolean alreadyThere = false;
-            double difference = Math.abs(position_in_screen - last_position_in_screen);
-            if(last_position_in_screen != 0 &&  difference > 10 && difference < 60) {
-                last_position_in_screen = last_position_in_screen + ALPHA * (position_in_screen - last_position_in_screen);
-                alreadyThere = false;
-            }
-            else if(difference < 10) {
-                last_position_in_screen = last_position_in_screen + BETA * (position_in_screen - last_position_in_screen);
-                alreadyThere = false;
-            }
-            else if(difference > 60){
-                if(alreadyThere)
-                    last_position_in_screen = position_in_screen;
-                else
-                    alreadyThere = true;
-            }
-               // last_position_in_screen = last_position_in_screen + ALPHA * (position_in_screen - last_position_in_screen);
-               // else last_position_in_screen = position_in_screen;
+            roll = sensorValues[0];
+            rotation = sensorValues[1];
 
-
-            // set edittext position
-            if(textToView != null) {
-                RelativeLayout.LayoutParams params =
-                        new RelativeLayout.LayoutParams(RelativeLayout.LayoutParams.WRAP_CONTENT,
-                                RelativeLayout.LayoutParams.WRAP_CONTENT);
-
-                int widthRatio = 7;
-                int heightRatio = 12;
-
-                int elemSizeWidth = width / widthRatio;
-                int elemSizeHeight = height / heightRatio;
-
-                params.leftMargin = width / 4 + elemSizeWidth + (int) Math.round(last_position_in_screen) * 20; // + 20 *70* (int)Math.signum(position_in_screen - last_position_in_screen);
-
-                params.topMargin = height/4 +  elemSizeHeight * (1 - (int)(sensorValues[0] - message_roll)) ;
-
-                textToView.setHeight(2 * elemSizeHeight);
-                textToView.setWidth(2 * elemSizeWidth);
-                textToView.setTextSize(20);
-                textToView.setText("Laur se misca");
-
-                textToView.setLayoutParams(params);
-
-                textToView.setTextAppearance(getApplicationContext(),
-                        R.style.AudioFileInfoOverlayText);
-
-                Drawable draw = getResources().getDrawable(R.drawable.mygradient);
-                textToView.setBackground(draw);
-
-                textToView.setGravity(Gravity.CENTER);
+            if(last_rotation != 0 ){
+                rotation = rotation + alpha * (rotation - last_rotation);
             }
 
+            if(last_roll != 0 && Math.abs(roll-last_roll) < 1 ){
+                roll = CosineInterpolate(last_roll, roll, 0.15);
+            }else if( Math.abs(roll-last_roll) >= 1 ) {
+                roll = CosineInterpolate(last_roll, roll, 0.25);
+            }
+            last_rotation = rotation;
+            last_roll = roll;
+
+            textSensorValues.setText("roll is " + roll + "\n" + "rotation is " + rotation + "\n");
+            int number = -1;
+            if(toMessageRotation == null)
+                return;
+            for(double rotationInArray : toMessageRotation)
+            {
+                number++;
+                setLastRotation(rotation, number, rotationInArray);
+                setLastRoll(roll, number);
+                setImagesOnCamera(number);
+            }
         }
+    }
+    double CosineInterpolate(
+            double y1,double y2,
+            double mu) {
+        double mu2;
+
+        mu2 = (1 - Math.cos(mu * Math.PI)) / 2;
+        return (y1 * (1 - mu2) + y2 * mu2);
     }
 
     @Override
     public void onAccuracyChanged(Sensor sensor, int accuracy) {
 
     }
+
+
+
 }
 
 

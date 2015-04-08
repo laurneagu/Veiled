@@ -6,7 +6,6 @@ import android.annotation.SuppressLint;
 import android.app.Activity;
 import android.app.AlertDialog;
 import android.content.Context;
-import android.content.pm.ActivityInfo;
 import android.graphics.PixelFormat;
 import android.hardware.Camera;
 import android.hardware.Sensor;
@@ -74,7 +73,6 @@ public class MessageCreator extends Activity implements SurfaceHolder.Callback, 
             Camera.CameraInfo info = new Camera.CameraInfo();
             Camera.getCameraInfo(i, info);
             if (info.facing == Camera.CameraInfo.CAMERA_FACING_FRONT) {
-                //Log.d(TAG, "Camera found");
                 cameraId = i;
                 break;
             }
@@ -100,28 +98,17 @@ public class MessageCreator extends Activity implements SurfaceHolder.Callback, 
 
     @Override
     public void surfaceCreated(SurfaceHolder holder) {
-        // TODO Auto-generated method stub
         camera = Camera.open();
     }
 
     @Override
     public void surfaceDestroyed(SurfaceHolder holder) {
-        // TODO Auto-generated method stub
         camera.stopPreview();
         camera.release();
         camera = null;
         previewing = false;
     }
 
-    @Override
-    public void onLocationChanged(Location location) {
-        currentLocation = location;
-    }
-
-    @Override
-    public void onStatusChanged(String provider, int status, Bundle extras) {
-
-    }
 
     @Override
     protected void onResume() {
@@ -183,12 +170,13 @@ public class MessageCreator extends Activity implements SurfaceHolder.Callback, 
                     postPos = PositionFinder.SetMessagePosition(currentLocation, sensorValues[0], sensorValues[1]);
 
                 //Toast.makeText(getApplicationContext(), currentLocation.getLatitude() + " -- " + currentLocation.getLongitude(), Toast.LENGTH_LONG).show();
-                Message currMessage = new Message(edittextDescription.getText().toString(),
+                //Message currMessage = new Message(edittextDescription.getText().toString(),
                         //postPos[0], postPos[1], 0);
-                        44.44492244901658, 26.056574334499892,  75);
+                        //44.44492244901658, 26.056574334499892,  75);
+                        // ASTA E BUN 44.444944, 26.056585,  25);
 
-                //Message currMessage2 = new Message(edittextDescription.getText().toString(),
-                //        currentLocation.getLatitude(), currentLocation.getLongitude(), 0);
+                Message currMessage = new Message(edittextDescription.getText().toString(),
+                        currentLocation.getLatitude(), currentLocation.getLongitude(), 0);
 
                 serviceClient.getTable(Message.class).insert(currMessage, new TableOperationCallback<Message>() {
                     public void onCompleted(Message entity, Exception exception, ServiceFilterResponse response) {
@@ -246,13 +234,6 @@ public class MessageCreator extends Activity implements SurfaceHolder.Callback, 
         }
     }
 
-    /**
-     * Calling this method makes the camera image show in the same orientation as the display.
-     * NOTE: This method is not allowed to be called during preview.
-     *
-     * @param cameraId
-     * @param camera
-     */
     @SuppressLint("NewApi")
     public void setCameraDisplayOrientation(int cameraId, android.hardware.Camera camera) {
         int rotation = ((WindowManager)getApplicationContext().getSystemService(Context.WINDOW_SERVICE)).getDefaultDisplay()
@@ -286,6 +267,17 @@ public class MessageCreator extends Activity implements SurfaceHolder.Callback, 
 
     @Override
     public void onAccuracyChanged(Sensor sensor, int accuracy) {
+
+    }
+
+
+    @Override
+    public void onLocationChanged(Location location) {
+        currentLocation = location;
+    }
+
+    @Override
+    public void onStatusChanged(String provider, int status, Bundle extras) {
 
     }
 }

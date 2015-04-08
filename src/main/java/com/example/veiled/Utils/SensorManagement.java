@@ -7,9 +7,6 @@ import android.hardware.SensorEvent;
 import android.hardware.SensorEventListener;
 import android.hardware.SensorManager;
 
-/**
- * Created by Laur on 11/21/2014.
- */
 
 public class SensorManagement {
     // Phone sensors
@@ -35,24 +32,25 @@ public class SensorManagement {
     }
 
     public void ResumeActivityRegisterSensors(Activity curr_activity){
-        mSensorManager.registerListener((SensorEventListener) curr_activity, mAccelerometer, SensorManager.SENSOR_DELAY_FASTEST);
-        mSensorManager.registerListener((SensorEventListener) curr_activity,mMagnetic, SensorManager.SENSOR_DELAY_NORMAL);
+        mSensorManager.registerListener((SensorEventListener) curr_activity, mAccelerometer, SensorManager.SENSOR_DELAY_UI);//SENSOR_DELAY_FASTEST);
+        mSensorManager.registerListener((SensorEventListener) curr_activity,mMagnetic, SensorManager.SENSOR_DELAY_UI);
     }
 
     public float[] GetSensorValues(SensorEvent curr_event) {
-        // last_roll, rotation
-        float[] sensorFinalValues = new float[2];
+        float[] sensorFinalValues = new float[3];
         float pitch = curr_event.values[1];
         float roll = curr_event.values[2];
+        float azimuth = curr_event.values[0];
 
         if (last_azimuth == last_pitch && last_azimuth == last_roll) {
             last_pitch = pitch;
             last_roll = roll;
+            last_azimuth = azimuth;
             return null;
         }
 
 
-        last_pitch = last_pitch + ALPHA * (pitch - last_pitch);
+        //last_pitch = last_pitch + ALPHA * (pitch - last_pitch);
 
         if (curr_event.sensor.getType() == Sensor.TYPE_ACCELEROMETER) {
             mGravity = curr_event.values;
@@ -75,10 +73,18 @@ public class SensorManagement {
                 SensorManager.getOrientation(R2, orientation);
 
                 float azimut = orientation[0];
+                float pitchIn = orientation[1];
+
                 if(last_azimuth != 0)
                     last_azimuth = last_azimuth + ALPHA * (azimut - last_azimuth);
                 else
                     last_azimuth = azimut;
+
+                if(last_pitch != 0)
+                    last_pitch = last_pitch + ALPHA * (pitchIn - last_pitch);
+                else
+                    last_pitch = pitchIn;
+
                 float rotation = -last_azimuth * 360 / (2 * 3.14159f);
 
                 sensorFinalValues[1] = Math.round(rotation);
